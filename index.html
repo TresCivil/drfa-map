@@ -1,0 +1,616 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DRFA Recovery Operations — Programme Map</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<!-- Azure Maps SDK -->
+<link rel="stylesheet" href="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.css"/>
+<script>window.__atlasReady=false;</script>
+<script src="https://atlas.microsoft.com/sdk/javascript/mapcontrol/3/atlas.min.js" async onload="window.__atlasReady=true;if(window.__bootDone)initMap();"></script>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;font-family:'DM Sans',system-ui,sans-serif;background:#fff;color:#1a1a2e;overflow:hidden;-webkit-font-smoothing:antialiased}
+:root{
+  --surface:#fff;--surface2:#f5f7fa;--surface3:#e8edf5;
+  --rim:rgba(0,0,0,0.07);--rim2:rgba(0,0,0,0.12);
+  --text:#1a1a2e;--muted:#6b7280;--faint:#9ca3af;
+  --complete:#10B981;--post:#3B82F6;--pre-con:#F59E0B;
+  --under-con:#F97316;--pre-event:#A78BFA;
+  --radius:6px;--radius-lg:12px;--radius-xl:18px;
+}
+#app{display:grid;grid-template-rows:auto auto 1fr;height:100vh;min-height:0}
+
+/* ── TOP BAR ── */
+#topbar{display:flex;align-items:stretch;background:#fff;border-bottom:1px solid var(--rim2);min-height:56px;position:relative;z-index:10}
+.tb-brand{display:flex;align-items:center;gap:12px;padding:0 20px;border-right:1px solid var(--rim);flex-shrink:0}
+.brand-title{font-size:13px;font-weight:700;color:#1a1a2e;letter-spacing:-.01em}
+.brand-sub{font-size:10px;color:var(--muted);font-weight:500}
+.tb-stats{display:flex;align-items:center;gap:1px;flex:1;padding:0 12px}
+.stat-pill{display:flex;flex-direction:column;justify-content:center;padding:0 16px;min-width:110px;height:100%;border-right:1px solid var(--rim)}
+.stat-pill:last-child{border-right:none}
+.stat-label{font-size:10px;color:var(--muted);font-weight:600;margin-bottom:4px}
+.stat-value{font-size:18px;font-weight:700;color:#1a1a2e;line-height:1;margin-bottom:5px}
+.stat-bar-track{height:3px;background:#e5e7eb;border-radius:2px;overflow:hidden}
+.stat-bar-fill{height:100%;border-radius:2px;transition:width .8s cubic-bezier(.4,0,.2,1)}
+.tb-right{display:flex;align-items:center;gap:10px;padding:0 16px;border-left:1px solid var(--rim);flex-shrink:0}
+.conn-badge{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--muted)}
+.conn-dot{width:7px;height:7px;border-radius:50%;background:#10b981;box-shadow:0 0 8px rgba(16,185,129,.4);flex-shrink:0}
+
+/* ── FILTER BAR ── */
+#filterbar{display:flex;align-items:center;gap:10px;padding:8px 16px;background:#f8f9fb;border-bottom:1px solid var(--rim);flex-wrap:wrap;z-index:9}
+.fb-label{font-size:12px;font-weight:500;color:#9ca3af;white-space:nowrap}
+.fb-sep{width:1px;height:18px;background:var(--rim2);flex-shrink:0;margin:0 4px}
+.stage-chips{display:flex;gap:5px;flex-wrap:wrap}
+.chip{display:inline-flex;align-items:center;gap:5px;padding:4px 11px;border-radius:20px;font-size:11px;font-weight:600;border:1.5px solid transparent;cursor:pointer;transition:all .18s;background:#fff;white-space:nowrap}
+.chip .dot{width:6px;height:6px;border-radius:50%;flex-shrink:0}
+.chip:hover{filter:brightness(.94);transform:translateY(-1px)}
+.chip.active{color:#fff!important}
+.fb-select{height:28px;padding:0 28px 0 10px;font-family:inherit;font-size:12px;border:1.5px solid var(--rim2);border-radius:var(--radius);background:#fff url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%239ca3af'/%3E%3C/svg%3E") no-repeat right 8px center;-webkit-appearance:none;appearance:none;color:#1a1a2e;outline:none;cursor:pointer;transition:border-color .15s}
+.fb-select:focus{border-color:#6366F1;box-shadow:0 0 0 3px rgba(99,102,241,.12)}
+.fb-select option{background:#fff}
+.clear-btn{display:flex;align-items:center;gap:5px;height:28px;padding:0 12px;font-family:inherit;font-size:11px;font-weight:600;border:1.5px solid var(--rim2);border-radius:var(--radius);background:transparent;color:var(--muted);cursor:pointer;transition:all .15s;white-space:nowrap}
+.clear-btn:hover{background:rgba(248,81,73,.1);border-color:rgba(248,81,73,.4);color:#f85149}
+
+/* ── LAYOUT ── */
+#main{display:flex;overflow:hidden;min-height:0;position:relative}
+
+/* ── SIDE PANEL ── */
+#side{width:280px;flex-shrink:0;background:#fff;border-right:1px solid var(--rim2);display:flex;flex-direction:column;transition:width .28s cubic-bezier(.4,0,.2,1);min-width:0;overflow:hidden;position:relative}
+#side.collapsed{width:0!important;border-right:none}
+#sideList{flex:1;overflow-y:auto}
+#sideList::-webkit-scrollbar{width:3px}
+#sideList::-webkit-scrollbar-thumb{background:#d1d5db;border-radius:2px}
+.list-item{display:flex;align-items:center;gap:10px;padding:10px 14px;border-bottom:1px solid var(--rim);cursor:pointer;transition:background .12s;position:relative}
+.list-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;opacity:0;transition:opacity .15s;border-radius:0 2px 2px 0}
+.list-item:hover{background:var(--surface2)}
+.list-item:hover::before{opacity:.5}
+.list-item.active{background:var(--surface3)}
+.list-item.active::before{opacity:1}
+.li-text{flex:1;overflow:hidden}
+.li-name{font-size:12px;font-weight:600;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.li-id{font-size:11px;color:var(--muted);margin-top:1px}
+.li-stage{font-size:10px;font-weight:700;border-radius:6px;padding:3px 8px;white-space:nowrap;flex-shrink:0}
+.group-header{display:flex;align-items:center;gap:8px;padding:8px 14px;background:#f5f7fa;border-bottom:1px solid var(--rim);cursor:pointer;user-select:none;position:sticky;top:0;z-index:1;transition:background .12s}
+.group-header:hover{background:#eef0f5}
+.group-chevron{width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--muted);flex-shrink:0;transition:transform .2s cubic-bezier(.4,0,.2,1)}
+.group-chevron.open{transform:rotate(90deg)}
+.group-name{font-size:12px;font-weight:600;color:var(--text);flex:1}
+.group-count{font-size:10px;font-weight:600;padding:2px 7px;border-radius:10px;background:var(--surface3);color:var(--muted)}
+.group-body{overflow:hidden;transition:max-height .25s cubic-bezier(.4,0,.2,1)}
+.group-body.collapsed{max-height:0!important}
+
+/* ── MAP ── */
+#mapArea{flex:1;position:relative;overflow:hidden}
+#azureMap{position:absolute;top:0;left:0;right:0;bottom:0}
+
+/* Pane toggle */
+#paneToggle{position:absolute;left:0;top:50%;transform:translateY(-50%);z-index:50;width:18px;height:56px;background:#fff;border:1px solid var(--rim2);border-left:none;border-radius:0 8px 8px 0;cursor:pointer;display:flex;align-items:center;justify-content:center;color:#6b7280;font-size:12px;font-weight:700;box-shadow:2px 0 8px rgba(0,0,0,.14);transition:background .15s,color .15s;padding:0}
+#paneToggle:hover{background:#f0f4ff;color:#1a1a2e}
+#paneToggle .arrow{transition:transform .28s cubic-bezier(.4,0,.2,1);display:inline-block;line-height:1}
+body.pane-collapsed #paneToggle .arrow{transform:rotate(180deg)}
+
+/* Legend */
+#legend{position:absolute;bottom:30px;left:14px;z-index:10;background:#fff;border:1px solid var(--rim2);border-radius:var(--radius-lg);padding:12px 14px;box-shadow:0 4px 16px rgba(0,0,0,.12)}
+.leg-title{font-size:10px;font-weight:600;color:var(--faint);margin-bottom:8px}
+.leg-row{display:flex;align-items:center;gap:8px;font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:500}
+.leg-row:last-child{margin-bottom:0}
+.leg-swatch{width:10px;height:10px;border-radius:3px;flex-shrink:0}
+
+/* Azure Maps popup override */
+.azure-popup .pop-inner{background:#fff;border:1px solid var(--rim2);border-radius:var(--radius-xl);box-shadow:0 12px 40px rgba(0,0,0,.18);min-width:270px;max-width:310px;overflow:hidden}
+.pop-accent-bar{height:4px;width:100%}
+.pop-head{padding:12px 16px 9px;border-bottom:1px solid var(--rim)}
+.pop-eyebrow{font-size:10px;font-weight:700;margin-bottom:4px}
+.pop-title{font-size:14px;font-weight:700;color:var(--text);line-height:1.3}
+.pop-sub{font-size:11px;color:var(--muted);margin-top:3px}
+.pop-img{width:100%;height:120px;object-fit:cover;display:block;border-top:1px solid var(--rim);border-bottom:1px solid var(--rim);background:#e8edf5}
+.pop-img-ph{width:100%;height:70px;background:linear-gradient(135deg,#f5f7fa,#e8edf5);display:flex;align-items:center;justify-content:center;font-size:24px;border-top:1px solid var(--rim);border-bottom:1px solid var(--rim)}
+.pop-body{padding:10px 16px 12px;display:grid;grid-template-columns:1fr 1fr;gap:8px 12px}
+.pop-field{display:flex;flex-direction:column;gap:2px}
+.pop-field.full{grid-column:1/-1}
+.pop-fkey{font-size:10px;font-weight:700;letter-spacing:.05em;color:var(--faint)}
+.pop-fval{font-size:12px;color:var(--text);font-weight:500}
+/* hide default azure popup chrome */
+.azure-maps-control-container .atlas-map-canvas-container{outline:none}
+
+/* ── RESIZABLE SPLITTER ── */
+#splitter{
+  width:6px;
+  background:var(--rim2);
+  cursor:col-resize;
+  flex-shrink:0;
+  position:relative;
+  z-index:20;
+  transition:background .15s;
+  display:flex;align-items:center;justify-content:center;
+}
+#splitter:hover,#splitter.dragging{background:#c7d2fe;}
+#splitter::after{
+  content:'⋮';
+  font-size:12px;
+  color:#c7d2fe;
+  letter-spacing:-1px;
+  pointer-events:none;
+}
+#splitter:hover::after,#splitter.dragging::after{color:#6366f1;}
+
+/* ── MAP LINK BUTTONS ── */
+.pop-map-links{
+  display:flex;gap:8px;padding:0 16px 14px;
+}
+.pop-map-btn{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+  padding:7px 10px;border-radius:8px;font-size:11px;font-weight:600;
+  font-family:inherit;cursor:pointer;text-decoration:none;
+  border:1.5px solid transparent;transition:all .15s;
+}
+.pop-map-btn:hover{filter:brightness(.93);}
+.pop-map-btn.apple{
+  background:#f5f5f7;border-color:#e0e0e5;color:#1d1d1f;
+}
+.pop-map-btn.google{
+  background:#e8f0fe;border-color:#c5d5f8;color:#1a56db;
+}
+.pop-map-btn svg{width:14px;height:14px;flex-shrink:0;}
+</style>
+</head>
+<body>
+<div id="app">
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div class="tb-brand">
+    <div>
+      <div class="brand-title">DRFA Recovery Map</div>
+      <div class="brand-sub">Programme Operations</div>
+    </div>
+  </div>
+  <div class="tb-stats" id="tbStats"></div>
+  <div class="tb-right">
+    <div class="conn-badge">
+      <div class="conn-dot"></div>
+      <span id="connLabel">Demo data</span>
+    </div>
+  </div>
+</div>
+
+<!-- FILTER BAR -->
+<div id="filterbar">
+  <span class="fb-label">Recover No.</span>
+  <select class="fb-select" id="filterRecover"><option value="">All</option></select>
+  <span class="fb-label">Road / Asset</span>
+  <select class="fb-select" id="filterRoad"><option value="">All</option></select>
+  <div class="fb-sep"></div>
+  <span class="fb-label">Stage</span>
+  <div class="stage-chips" id="stageChips"></div>
+  <button class="clear-btn" onclick="clearFilters()">✕ Clear filters</button>
+</div>
+
+<!-- MAIN -->
+<div id="main">
+  <div id="side">
+    <div id="sideList"></div>
+  </div>
+
+  <div id="splitter" id="splitter"></div>
+  <div id="mapArea">
+    <button id="paneToggle" onclick="togglePane()" title="Collapse / expand panel">
+      <span class="arrow">‹</span>
+    </button>
+    <div id="azureMap"></div>
+    <button onclick="fitAll()" title="Fit all pins" style="position:absolute;bottom:120px;right:14px;z-index:10;width:32px;height:32px;background:#fff;border:1px solid rgba(0,0,0,0.14);border-radius:6px;font-size:16px;cursor:pointer;box-shadow:0 2px 6px rgba(0,0,0,0.15);display:flex;align-items:center;justify-content:center;" title="Fit all pins">⊡</button>
+    <div id="legend">
+      <div class="leg-title">Recovery Stage</div>
+      <div class="leg-row"><div class="leg-swatch" style="background:#10B981"></div>Completion</div>
+      <div class="leg-row"><div class="leg-swatch" style="background:#3B82F6"></div>Post-Event</div>
+      <div class="leg-row"><div class="leg-swatch" style="background:#F59E0B"></div>Pre-Construction</div>
+      <div class="leg-row"><div class="leg-swatch" style="background:#F97316"></div>Under Construction</div>
+      <div class="leg-row"><div class="leg-swatch" style="background:#A78BFA"></div>Pre-Event</div>
+    </div>
+  </div>
+</div>
+</div>
+
+<script>
+const AZURE_KEY='DTXUfyEzWP2xb64BDnP2NCE3qdKRl4rLskMDwixH83RcsbBkbMV4JQQJ99CFACYeBjFofH37AAAgAZMP144l';
+
+/* ── STAGE CONFIG ── */
+const STAGE_CFG={
+  'Completion':        {c:'#10B981',glow:'rgba(16,185,129,.5)',l:'rgba(16,185,129,.12)'},
+  'Post-Event':        {c:'#3B82F6',glow:'rgba(59,130,246,.5)',l:'rgba(59,130,246,.12)'},
+  'Pre-Construction':  {c:'#F59E0B',glow:'rgba(245,158,11,.5)',l:'rgba(245,158,11,.12)'},
+  'Under Construction':{c:'#F97316',glow:'rgba(249,115,22,.5)',l:'rgba(249,115,22,.12)'},
+  'Pre-Event':         {c:'#A78BFA',glow:'rgba(167,139,250,.5)',l:'rgba(167,139,250,.12)'},
+};
+const sc=s=>(STAGE_CFG[s]||{c:'#7A8BA8'}).c;
+const sl=s=>(STAGE_CFG[s]||{l:'rgba(0,0,0,.05)'}).l;
+
+/* ── DEMO DATA — uses Dataverse column names (drfa_*) ── */
+const DEMO=[
+  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7841,drfa_ImageLongitude:152.4023,drfa_ImageBase64:"",drfa_Caption:"Road surface damage near creek crossing"},
+  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7840,drfa_ImageLongitude:152.4016,drfa_ImageBase64:"",drfa_Caption:"Shoulder erosion on bend"},
+  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7838,drfa_ImageLongitude:152.4008,drfa_ImageBase64:"",drfa_Caption:"Culvert outlet scour"},
+  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7836,drfa_ImageLongitude:152.4001,drfa_ImageBase64:"",drfa_Caption:"Pavement deformation — section 4"},
+  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7835,drfa_ImageLongitude:152.3993,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7833,drfa_ImageLongitude:152.3988,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7831,drfa_ImageLongitude:152.3984,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00108",drfa_SiteName:"Black Mountain Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.9261,drfa_ImageLongitude:152.1234,drfa_ImageBase64:"",drfa_Caption:"Flood scour on downstream face"},
+  {drfa_RecoverDamageNumber:"DM00108",drfa_SiteName:"Black Mountain Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.9255,drfa_ImageLongitude:152.1228,drfa_ImageBase64:"",drfa_Caption:"Debris blockage at culvert"},
+  {drfa_RecoverDamageNumber:"DM00108",drfa_SiteName:"Black Mountain Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.9270,drfa_ImageLongitude:152.1240,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00115",drfa_SiteName:"Comboyne Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.6020,drfa_ImageLongitude:152.4610,drfa_ImageBase64:"",drfa_Caption:"Landslip blocking carriageway"},
+  {drfa_RecoverDamageNumber:"DM00115",drfa_SiteName:"Comboyne Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.6035,drfa_ImageLongitude:152.4598,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00115",drfa_SiteName:"Comboyne Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.6010,drfa_ImageLongitude:152.4622,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00121",drfa_SiteName:"Byabarra Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.5540,drfa_ImageLongitude:152.5120,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00121",drfa_SiteName:"Byabarra Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.5528,drfa_ImageLongitude:152.5134,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00130",drfa_SiteName:"Rawdon Island Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.8530,drfa_ImageLongitude:152.6801,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00130",drfa_SiteName:"Rawdon Island Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.8541,drfa_ImageLongitude:152.6789,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00145",drfa_SiteName:"Lansdowne Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.7820,drfa_ImageLongitude:152.5340,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00145",drfa_SiteName:"Lansdowne Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.7834,drfa_ImageLongitude:152.5328,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00152",drfa_SiteName:"Wingham Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.8680,drfa_ImageLongitude:152.3700,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00152",drfa_SiteName:"Wingham Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.8692,drfa_ImageLongitude:152.3714,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00152",drfa_SiteName:"Wingham Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.8670,drfa_ImageLongitude:152.3688,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00158",drfa_SiteName:"Oxley Hwy",drfa_Stage:"Under Construction",drfa_ImageLatitude:-31.6900,drfa_ImageLongitude:152.4100,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00158",drfa_SiteName:"Oxley Hwy",drfa_Stage:"Under Construction",drfa_ImageLatitude:-31.6912,drfa_ImageLongitude:152.4088,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00163",drfa_SiteName:"Brimbin Rd",drfa_Stage:"Pre-Event",drfa_ImageLatitude:-31.9100,drfa_ImageLongitude:152.5200,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00163",drfa_SiteName:"Brimbin Rd",drfa_Stage:"Pre-Event",drfa_ImageLatitude:-31.9112,drfa_ImageLongitude:152.5212,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00170",drfa_SiteName:"Harrington Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.8730,drfa_ImageLongitude:152.6900,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00170",drfa_SiteName:"Harrington Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.8742,drfa_ImageLongitude:152.6914,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00177",drfa_SiteName:"Manning River Dr",drfa_Stage:"Pre-Event",drfa_ImageLatitude:-31.9050,drfa_ImageLongitude:152.4950,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00177",drfa_SiteName:"Manning River Dr",drfa_Stage:"Pre-Event",drfa_ImageLatitude:-31.9062,drfa_ImageLongitude:152.4964,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00183",drfa_SiteName:"Johns River Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.5210,drfa_ImageLongitude:152.5550,drfa_ImageBase64:"",drfa_Caption:""},
+  {drfa_RecoverDamageNumber:"DM00183",drfa_SiteName:"Johns River Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.5225,drfa_ImageLongitude:152.5562,drfa_ImageBase64:"",drfa_Caption:""},
+];
+
+
+/* ── NORMALISE — maps Dataverse column names to internal fields ──
+   Dataverse sends: drfa_RecoverDamageNumber, drfa_SiteName, drfa_Stage,
+                    drfa_ImageLatitude, drfa_ImageLongitude,
+                    drfa_ImageBase64, drfa_Caption
+   Internal map:    r.id, r.road, r.stage, r.lat, r.lng, r.image64, r.caption
+*/
+function normalise(raw){
+  return {
+    id:       raw.drfa_RecoverDamageNumber || raw.id       || '',
+    road:     raw.drfa_RecoverRoadName      || raw.drfa_SiteName || raw.road || '',
+    stage:    raw.drfa_Stage               || raw.stage    || '',
+    lat:      parseFloat(raw.drfa_ImageLatitude  ?? raw.lat  ?? 0),
+    lng:      parseFloat(raw.drfa_ImageLongitude ?? raw.lng  ?? 0),
+    image64:  raw.drfa_ImageBase64         || raw.image64  || '',
+    caption:  raw.drfa_Caption             || raw.caption  || '',
+  };
+}
+/* ── STATE ── */
+let records=[], activeStage=null, filterRecover='', filterRoad='';
+let azMap=null, popup=null;
+const groupOpen={};
+
+/* ── STATS BAR ── */
+function renderStats(){
+  const total=records.length; if(!total){document.getElementById('tbStats').innerHTML='';return;}
+  const sc2={};records.forEach(r=>{sc2[r.stage]=(sc2[r.stage]||0)+1;});
+  const complete=sc2['Completion']||0;
+  const active=(sc2['Under Construction']||0)+(sc2['Post-Event']||0);
+  const pending=(sc2['Pre-Construction']||0)+(sc2['Pre-Event']||0);
+  const pct=Math.round(complete/total*100);
+  const stats=[
+    {label:'Total Locations',value:total,bar:100,color:'#6366F1'},
+    {label:'Completed',value:complete,bar:pct,color:'#10B981'},
+    {label:'Active Works',value:active,bar:Math.round(active/total*100),color:'#F97316'},
+    {label:'Pending',value:pending,bar:Math.round(pending/total*100),color:'#A78BFA'},
+    {label:'Completion Rate',value:pct+'%',bar:pct,color:'#10B981'},
+  ];
+  document.getElementById('tbStats').innerHTML=stats.map(s=>`
+    <div class="stat-pill">
+      <div class="stat-label">${s.label}</div>
+      <div class="stat-value">${s.value}</div>
+      <div class="stat-bar-track"><div class="stat-bar-fill" style="width:0%;background:${s.color}" data-w="${s.bar}"></div></div>
+    </div>`).join('');
+  requestAnimationFrame(()=>document.querySelectorAll('.stat-bar-fill').forEach(el=>{el.style.width=el.dataset.w+'%';}));
+}
+
+/* ── DROPDOWNS ── */
+function populateDropdowns(){
+  const ids=[...new Set(records.map(r=>r.id).filter(Boolean))].sort();
+  const roads=[...new Set(records.map(r=>r.road).filter(Boolean))].sort();
+  const rS=document.getElementById('filterRecover'),dS=document.getElementById('filterRoad');
+  const cr=rS.value,cd=dS.value;
+  rS.innerHTML='<option value="">All Recover No.</option>'+ids.map(v=>`<option value="${v}">${v}</option>`).join('');
+  dS.innerHTML='<option value="">All Roads</option>'+roads.map(v=>`<option value="${v}">${v}</option>`).join('');
+  if(ids.includes(cr))rS.value=cr; if(roads.includes(cd))dS.value=cd;
+}
+function clearFilters(){
+  activeStage=null;filterRecover='';filterRoad='';
+  document.getElementById('filterRecover').value='';
+  document.getElementById('filterRoad').value='';
+  buildChips();if(popup)popup.close();renderList();updatePins();setTimeout(fitAll,100);
+}
+
+/* ── FILTER ── */
+function getFiltered(){
+  return records.filter(r=>{
+    if(activeStage&&r.stage!==activeStage)return false;
+    if(filterRecover&&r.id!==filterRecover)return false;
+    if(filterRoad&&r.road!==filterRoad)return false;
+    return true;
+  });
+}
+
+/* ── CHIPS ── */
+const STAGE_KEYS=['Completion','Post-Event','Pre-Construction','Under Construction','Pre-Event'];
+function buildChips(){
+  document.getElementById('stageChips').innerHTML=STAGE_KEYS.map(s=>{
+    const col=sc(s),isAct=activeStage===s;
+    return `<button class="chip${isAct?' active':''}"
+      style="border-color:${col}55;color:${isAct?'#fff':col};background:${isAct?col:'#fff'};${isAct?`box-shadow:0 0 10px ${col}44`:''}"
+      onclick="setStage('${s}')">
+      <span class="dot" style="background:${col}"></span>${s}</button>`;
+  }).join('');
+}
+function setStage(s){activeStage=activeStage===s?null:s;buildChips();if(popup)popup.close();renderList();updatePins();setTimeout(fitAll,100);}
+
+/* ── SIDE LIST ── */
+function renderList(){
+  const vis=getFiltered();
+  const groups={};
+  vis.forEach(r=>{const k=r.road||'Unknown';if(!groups[k])groups[k]=[];groups[k].push(r);});
+  document.getElementById('sideList').innerHTML=Object.entries(groups).map(([road,items])=>{
+    if(groupOpen[road]===undefined)groupOpen[road]=true;
+    const isOpen=groupOpen[road];
+    const rows=items.map(r=>{
+      const col=sc(r.stage),bg=sl(r.stage),gi=records.indexOf(r);
+      return `<div class="list-item" id="li-${gi}" onclick="flyToRecord(${gi})">
+        <div class="li-text">
+          <div class="li-id">${r.lat.toFixed(4)}°S, ${r.lng.toFixed(4)}°E</div>
+        </div>
+        <span class="li-stage" style="background:${bg};color:${col}">${r.stage}</span>
+      </div>`;
+    }).join('');
+    const safeId='grp_'+road.replace(/[^a-z0-9]/gi,'_');
+    const bh=items.length*54+10;
+    const escapedRoad=road.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
+    const dmId=items[0].id||'';
+    return `<div class="group-header" data-road="${escapedRoad}" onclick="toggleGroup(this)">
+        <span class="group-chevron${isOpen?' open':''}">▶</span>
+        <span class="group-name">${dmId} · ${road}</span>
+        <span class="group-count">${items.length}</span>
+      </div>
+      <div class="group-body${isOpen?'':' collapsed'}" id="${safeId}" style="max-height:${isOpen?bh:0}px">${rows}</div>`;
+  }).join('');
+}
+function toggleGroup(h){
+  const road=h.dataset.road; groupOpen[road]=!groupOpen[road];
+  const isOpen=groupOpen[road];
+  h.querySelector('.group-chevron').classList.toggle('open',isOpen);
+  const safeId='grp_'+road.replace(/[^a-z0-9]/gi,'_');
+  const body=document.getElementById(safeId);
+  if(body){const bh=body.querySelectorAll('.list-item').length*54+10;body.style.maxHeight=isOpen?bh+'px':'0px';body.classList.toggle('collapsed',!isOpen);}
+}
+function highlightList(r){
+  document.querySelectorAll('.list-item').forEach(el=>el.classList.remove('active'));
+  const road=r.road||'Unknown'; groupOpen[road]=true; renderList();
+  const idx=records.indexOf(r);
+  const el=document.getElementById(`li-${idx}`);
+  if(el){el.classList.add('active');el.scrollIntoView({behavior:'smooth',block:'nearest'});}
+}
+
+/* ── POPUP HTML ── */
+function popupHtml(r){
+  const col=sc(r.stage);
+  let imgHtml='';
+  if(r.image64&&r.image64.length>50){
+    const src=r.image64.startsWith('data:')?r.image64:'data:image/jpeg;base64,'+r.image64;
+    imgHtml=`<img class="pop-img" src="${src}" alt="site" onerror="this.style.display='none'">`;
+  } else {
+    // Azure Maps Static Image — shows actual satellite road view
+    const staticUrl=`https://atlas.microsoft.com/map/static?api-version=2024-04-01&tilesetId=microsoft.base.hybrid.road&zoom=15&center=${r.lng},${r.lat}&width=280&height=120&language=en-AU&subscription-key=DTXUfyEzWP2xb64BDnP2NCE3qdKRl4rLskMDwixH83RcsbBkbMV4JQQJ99CFACYeBjFofH37AAAgAZMP144l`;
+    imgHtml=`<img class="pop-img" src="${staticUrl}" alt="location preview" style="height:120px;object-fit:cover;" onerror="this.outerHTML='<div class=pop-img-ph>📍</div>'">`;
+  }
+  const lat=r.lat.toFixed(6), lng=r.lng.toFixed(6);
+  const googleUrl=`https://www.google.com/maps?q=${lat},${lng}`;
+  const appleUrl=`https://maps.apple.com/?ll=${lat},${lng}&q=${encodeURIComponent(r.road||r.id)}`;
+  return `<div class="pop-inner">
+    <div class="pop-accent-bar" style="background:linear-gradient(90deg,${col},${col}88)"></div>
+    <div class="pop-head">
+      <div class="pop-eyebrow" style="color:${col}">${r.stage}</div>
+      <div class="pop-title">${r.road||'—'}</div>
+      <div class="pop-sub">${r.id} · ${r.lat.toFixed(4)}°S, ${r.lng.toFixed(4)}°E</div>
+    </div>
+    ${imgHtml}
+    <div class="pop-body">
+      <div class="pop-field"><div class="pop-fkey">Recover No.</div><div class="pop-fval">${r.id}</div></div>
+      <div class="pop-field"><div class="pop-fkey">Stage</div><div class="pop-fval" style="color:${col}">${r.stage}</div></div>
+      <div class="pop-field full"><div class="pop-fkey">Road / Asset</div><div class="pop-fval">${r.road||'—'}</div></div>
+      ${r.caption?`<div class="pop-field full"><div class="pop-fkey">Caption</div><div class="pop-fval">${r.caption}</div></div>`:''}
+    </div>
+    <div class="pop-map-links">
+      <a class="pop-map-btn apple" href="${appleUrl}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 14 14" fill="none"><path d="M7 1C3.69 1 1 3.69 1 7s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 1.5A4.5 4.5 0 1 1 7 11.5 4.5 4.5 0 0 1 7 2.5zm0 1a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm.5 1.5v2.29l1.35 1.36-.7.7L6.5 7.71V5h1z" fill="currentColor"/></svg>
+        Apple Maps
+      </a>
+      <a class="pop-map-btn google" href="${googleUrl}" target="_blank" rel="noopener">
+        <svg viewBox="0 0 14 14" fill="none"><path d="M7 1C4.24 1 2 3.24 2 6c0 3.75 5 8 5 8s5-4.25 5-8c0-2.76-2.24-5-5-5zm0 6.5A1.5 1.5 0 1 1 7 4a1.5 1.5 0 0 1 0 3z" fill="currentColor"/></svg>
+        Google Maps
+      </a>
+    </div>
+  </div>`;
+}
+
+/* ── PIN SVG ── */
+function pinSvg(col){
+  // Use CSS filter for drop-shadow — no SVG filter IDs, no DOM conflicts
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="42" viewBox="0 0 32 42"
+    style="filter:drop-shadow(0 2px 3px ${col}88);display:block;">
+    <path d="M16 2C8.3 2 2 8.3 2 16c0 10 14 24 14 24s14-14 14-24C30 8.3 23.7 2 16 2z"
+      fill="${col}"/>
+    <circle cx="16" cy="16" r="7" fill="rgba(255,255,255,0.92)"/>
+  </svg>`;
+}
+
+/* ── AZURE MAP INIT ── */
+let markers=[];
+
+function initMap(){
+  azMap = new atlas.Map('azureMap',{
+    center:[152.45,-31.75],
+    zoom:9,
+    style:'satellite_road_labels',
+    authOptions:{authType:'subscriptionKey',subscriptionKey:AZURE_KEY},
+    language:'en-AU',
+  });
+
+  azMap.events.add('ready',()=>{
+    popup = new atlas.Popup({
+      pixelOffset:[0,-38],
+      closeButton:true,
+      fillColor:'transparent',
+      strokeColor:'transparent',
+    });
+    updatePins(); // map already centred on NSW via initial center/zoom
+  });
+}
+
+/* ── UPDATE PINS — instant HtmlMarkers ── */
+function updatePins(){
+  if(!azMap)return;
+  markers.forEach(m=>azMap.markers.remove(m.marker||m));
+  markers=[];
+  const vis=getFiltered();
+  vis.forEach((r,i)=>{
+    const col=sc(r.stage);
+    const markerId='pin-'+i;
+    // Pass HTML string (not DOM element) — required by Azure Maps HtmlMarker
+    const htmlStr=`<div id="${markerId}" style="cursor:pointer;display:block;">
+      <div class="pin-inner" style="display:block;transition:filter .15s;">${pinSvg(col)}</div>
+    </div>`;
+    const marker=new atlas.HtmlMarker({
+      htmlContent:htmlStr,
+      position:[r.lng,r.lat],
+      anchor:'bottom',
+    });
+    azMap.markers.add(marker);
+    markers.push({marker,record:r});
+    // Attach events after marker is in DOM
+    azMap.events.add('click',marker,()=>{
+      popup.setOptions({
+        content:`<div class="azure-popup">${popupHtml(r)}</div>`,
+        position:[r.lng,r.lat],
+      });
+      popup.open(azMap);
+      highlightList(r);
+      postUp({type:'PIN_CLICK',id:r.id,stage:r.stage,lat:r.lat,lng:r.lng});
+    });
+    azMap.events.add('mouseenter',marker,()=>{
+      const el=marker.getElement();
+      if(el){const inner=el.querySelector('.pin-inner');if(inner)inner.style.filter='brightness(1.2)';}
+    });
+    azMap.events.add('mouseleave',marker,()=>{
+      const el=marker.getElement();
+      if(el){const inner=el.querySelector('.pin-inner');if(inner)inner.style.filter='';}
+    });
+  });
+}
+
+/* ── FIT ALL ── */
+function fitAll(){
+  const vis=getFiltered(); if(!vis.length||!azMap)return;
+  const lats=vis.map(r=>r.lat), lngs=vis.map(r=>r.lng);
+  const west=Math.min(...lngs), east=Math.max(...lngs);
+  const south=Math.min(...lats), north=Math.max(...lats);
+  const centerLng=(west+east)/2, centerLat=(south+north)/2;
+  const dlng=(east-west)||0.001, dlat=(north-south)||0.001;
+  const mapW=(document.getElementById('mapArea').offsetWidth)||900;
+  const mapH=(document.getElementById('mapArea').offsetHeight)||600;
+  const zLng=Math.log2(mapW*360/(dlng*256*1.5));
+  const zLat=Math.log2(mapH*170/(dlat*256*1.5));
+  let zoom=Math.floor(Math.min(zLng,zLat));
+  // When few pins filtered, zoom in closer — min zoom 13
+  const isFiltered=(activeStage||filterRecover||filterRoad);
+  zoom=Math.min(16, Math.max(isFiltered?13:7, zoom));
+  azMap.setCamera({center:[centerLng,centerLat],zoom,duration:800,type:'fly'});
+}
+
+/* ── FLY TO RECORD ── */
+function flyToRecord(idx){
+  const r=records[idx]; if(!r||!azMap)return;
+  azMap.setCamera({center:[r.lng,r.lat],zoom:14,duration:800,type:'fly'});
+  setTimeout(()=>{
+    popup.setOptions({content:`<div class="azure-popup">${popupHtml(r)}</div>`,position:[r.lng,r.lat]});
+    popup.open(azMap);
+    highlightList(r);
+  },900);
+}
+
+/* ── PANE TOGGLE ── */
+function togglePane(){
+  const side=document.getElementById('side');
+  const spl=document.getElementById('splitter');
+  const isCollapsed=side.classList.toggle('collapsed');
+  document.body.classList.toggle('pane-collapsed',isCollapsed);
+  spl.style.display=isCollapsed?'none':'flex';
+  setTimeout(()=>{if(azMap)azMap.resize();},300);
+}
+
+
+/* ── SPLITTER DRAG ── */
+(()=>{
+  const splitter=document.getElementById('splitter');
+  const side=document.getElementById('side');
+  let dragging=false, startX=0, startW=0;
+  const MIN_W=120, MAX_W=520;
+
+  splitter.addEventListener('mousedown',e=>{
+    dragging=true; startX=e.clientX; startW=side.offsetWidth;
+    splitter.classList.add('dragging');
+    document.body.style.cursor='col-resize';
+    document.body.style.userSelect='none';
+    e.preventDefault();
+  });
+  document.addEventListener('mousemove',e=>{
+    if(!dragging)return;
+    const dx=e.clientX-startX;
+    const newW=Math.min(MAX_W,Math.max(MIN_W,startW+dx));
+    side.style.width=newW+'px';
+    if(azMap)azMap.resize();
+  });
+  document.addEventListener('mouseup',()=>{
+    if(!dragging)return;
+    dragging=false;
+    splitter.classList.remove('dragging');
+    document.body.style.cursor='';
+    document.body.style.userSelect='';
+    if(azMap)azMap.resize();
+  });
+})();
+
+/* ── postMessage → Power Apps ── */
+function postUp(obj){try{window.parent.postMessage(JSON.stringify(obj),'*');}catch(e){}}
+
+/* ── LOAD DATA ── */
+function loadFromHash(){
+  try{
+    const h=window.location.hash; if(!h||h.length<2)return false;
+    const p=JSON.parse(decodeURIComponent(h.substring(1)));
+    if(!Array.isArray(p)||!p.length)return false;
+    records=p.map(normalise); document.getElementById('connLabel').textContent='Dataverse ('+records.length+' records)'; return true;
+  }catch(e){return false;}
+}
+
+/* ── EVENT LISTENERS ── */
+document.getElementById('filterRecover').addEventListener('change',function(){filterRecover=this.value;renderList();updatePins();setTimeout(fitAll,150);});
+document.getElementById('filterRoad').addEventListener('change',function(){filterRoad=this.value;renderList();updatePins();setTimeout(fitAll,150);});
+window.addEventListener('hashchange',()=>{if(loadFromHash()){populateDropdowns();renderStats();renderList();updatePins();fitAll();}});
+
+/* ── BOOT ── */
+if(!loadFromHash()){records=DEMO.map(normalise);document.getElementById('connLabel').textContent='Demo · '+records.length+' records';}
+populateDropdowns();renderStats();buildChips();renderList();
+postUp({type:'READY'});
+// Wait for Atlas SDK to load before initialising map
+window.__bootDone=true;
+if(window.__atlasReady){initMap();}
+// Fallback poll in case onload already fired before this script ran
+else{const t=setInterval(()=>{if(typeof atlas!=='undefined'){clearInterval(t);initMap();}},50);}
+</script>
+</body>
+</html>
