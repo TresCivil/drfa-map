@@ -434,7 +434,7 @@ function renderList(){
       return '<div class="list-item" id="li-'+gi+'" onclick="flyToRecord('+gi+')">'
         +'<div class="li-thumb" id="'+thumbId+'">'+thumbHtml+'</div>'
         +'<div class="li-text">'
-        +'<div class="li-id">'+r.lat.toFixed(4)+'°S, '+r.lng.toFixed(4)+'°E</div>'
+        +'<div class="li-id">'+r.lat.toFixed(4)+'°S, '+r.lng.toFixed(4)+'°E</div>'+'<div style="color:#9ca3af;font-size:10px;font-family:monospace;padding:0 0 2px;">IMG: '+(r.imageID||'none')+'</div>'
         +(r.caption?'<div class="li-id" style="color:#9ca3af;font-size:10px;">'+r.caption+'</div>':'')
         +'</div>'
         +'<span class="li-stage" style="background:'+bg+';color:'+col+'">'+r.stage+'</span>'
