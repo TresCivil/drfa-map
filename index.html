@@ -155,21 +155,20 @@ body.pane-collapsed #paneToggle .arrow{transform:rotate(180deg)}
 }
 .pop-map-btn svg{width:14px;height:14px;flex-shrink:0;}
 
-.img-gallery{padding:8px 12px;background:#f5f7fa;border-bottom:1px solid rgba(0,0,0,0.07)}
-.img-gallery-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:6px}
-.img-thumb{position:relative;width:100%;padding-top:75%;border-radius:6px;overflow:hidden;background:#e8edf5;cursor:pointer;border:2px solid transparent;transition:border-color .15s}
-.img-thumb:hover{border-color:#6366f1}
-.img-thumb img{position:absolute;top:0;left:0;width:100%;height:100%;object-fit:cover}
-.img-thumb .img-cap{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,rgba(0,0,0,.6));color:#fff;font-size:9px;padding:3px 5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.img-thumb .img-spin{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:18px;opacity:.4}
-.img-load-btn{width:100%;margin-top:6px;padding:5px;font-size:11px;font-family:inherit;font-weight:600;border:1.5px solid rgba(0,0,0,0.12);border-radius:6px;background:#fff;color:#6b7280;cursor:pointer}
-.img-load-btn:disabled{opacity:.5;cursor:default}
+/* ── PER-ROW THUMBNAIL ── */
+.list-item{position:relative}
+.li-thumb{
+  width:52px;height:52px;border-radius:6px;overflow:hidden;
+  background:#e8edf5;flex-shrink:0;
+  display:flex;align-items:center;justify-content:center;
+  font-size:18px;cursor:pointer;
+  border:1.5px solid transparent;transition:border-color .15s;
+}
+.li-thumb:hover{border-color:#6366f1}
+.li-thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.li-thumb .li-spin{font-size:14px;opacity:.5;animation:spin 1s linear infinite;}
+@keyframes spin{to{transform:rotate(360deg)}}
 
-#debugPanel{position:fixed;top:35px;left:50%;transform:translateX(-50%);z-index:9999;background:#1a1a2e;color:#10B981;
-  font-family:monospace;font-size:11px;padding:10px;border-radius:6px;max-width:400px;
-  max-height:300px;overflow-y:auto;display:none;white-space:pre-wrap;word-break:break-all;}
-#debugBtn{position:fixed;top:4px;left:50%;transform:translateX(-50%);z-index:9999;padding:4px 12px;font-size:11px;
-  background:#1a1a2e;color:#10B981;border:1px solid #10B981;border-radius:4px;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -233,14 +232,24 @@ const CIVICA={base:'https://api.civicagov.com',user:'MidCoastRecoverApiUser',pas
 async function civicaLogin(){if(CIVICA.sessionId)return true;try{const res=await fetch(CIVICA.base+'/api/DataService/Login/json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({UserName:CIVICA.user,Password:CIVICA.pass,ClientKey:CIVICA.clientKey})});const d=await res.json();if(!d.SessionId)return false;CIVICA.sessionId=d.SessionId;CIVICA.userId=d.UserId;return true;}catch(e){return false;}}
 async function civicaGetImage(imageID){if(!imageID)return null;if(CIVICA.imgCache[imageID])return CIVICA.imgCache[imageID];if(CIVICA.pending[imageID])return new Promise(r=>CIVICA.pending[imageID].push(r));CIVICA.pending[imageID]=[];try{const ok=await civicaLogin();if(!ok)return null;const res=await fetch(CIVICA.base+'/api/DataService/GetRecord/json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({UserId:CIVICA.userId,SessionId:CIVICA.sessionId,ModuleName:'Images',RecordId:imageID})});const d=await res.json();if(!d.Success||!d.Data)return null;const img=d.Data.Image||null;if(img)CIVICA.imgCache[imageID]=img;(CIVICA.pending[imageID]||[]).forEach(cb=>cb(img));delete CIVICA.pending[imageID];return img;}catch(e){(CIVICA.pending[imageID]||[]).forEach(cb=>cb(null));delete CIVICA.pending[imageID];return null;}}
 const groupImagesLoaded={};
-async function loadGroupImages(galleryId,road,event){
-  const btn=event.target;btn.disabled=true;btn.textContent='Loading…';
+async function loadGroupImages(road){
+  // Find all records in this group that have an imageID
   const items=records.filter(r=>(r.road||'Unknown')===road&&r.imageID);
-  const gallery=document.getElementById(galleryId);if(!gallery)return;
-  const grid=document.createElement('div');grid.className='img-gallery-grid';
-  items.forEach(r=>{const th=document.createElement('div');th.className='img-thumb';th.id='th_'+r.imageID;th.innerHTML='<div class="img-spin">⏳</div>';th.onclick=()=>flyToRecord(records.indexOf(r));grid.appendChild(th);});
-  btn.replaceWith(grid);
-  await Promise.all(items.map(async r=>{const b64=await civicaGetImage(r.imageID);const th=document.getElementById('th_'+r.imageID);if(!th)return;if(b64){const src=b64.startsWith('data:')?b64:'data:image/jpeg;base64,'+b64;r.image64=b64;th.innerHTML='<img src="'+src+'" alt="photo">'+(r.caption?'<div class="img-cap">'+r.caption+'</div>':'');}else{th.innerHTML='<div class="img-spin">🚫</div>';}}));
+  if(!items.length)return;
+  // Load each image and update the thumbnail in-place
+  await Promise.all(items.map(async r=>{
+    const gi=records.indexOf(r);
+    const th=document.getElementById('th_'+gi);
+    if(!th)return;
+    const b64=await civicaGetImage(r.imageID);
+    if(b64){
+      const src=b64.startsWith('data:')?b64:'data:image/jpeg;base64,'+b64;
+      r.image64=b64;
+      th.innerHTML='<img src="'+src+'" alt="photo" style="width:100%;height:100%;object-fit:cover;">';
+    }else{
+      th.innerHTML='<div style="font-size:14px;opacity:.4;">🚫</div>';
+    }
+  }));
 }
 </script>
 <script>
@@ -392,40 +401,68 @@ function renderList(){
   const groups={};
   vis.forEach(r=>{const k=r.road||'Unknown';if(!groups[k])groups[k]=[];groups[k].push(r);});
   document.getElementById('sideList').innerHTML=Object.entries(groups).map(([road,items])=>{
-    if(groupOpen[road]===undefined)groupOpen[road]=true;
+    // Default COLLAPSED
+    if(groupOpen[road]===undefined)groupOpen[road]=false;
     const isOpen=groupOpen[road];
-    const rows=items.map(r=>{
-      const col=sc(r.stage),bg=sl(r.stage),gi=records.indexOf(r);
-      return `<div class="list-item" id="li-${gi}" onclick="flyToRecord(${gi})">
-        <div class="li-text">
-          <div class="li-id">${r.lat.toFixed(4)}°S, ${r.lng.toFixed(4)}°E</div>
-        </div>
-        <span class="li-stage" style="background:${bg};color:${col}">${r.stage}</span>
-      </div>`;
-    }).join('');
     const safeId='grp_'+road.replace(/[^a-z0-9]/gi,'_');
-    const bh=items.length*54+10;
+    const bh=items.length*72+8;
     const escapedRoad=road.replace(/&/g,'&amp;').replace(/"/g,'&quot;');
     const dmId=items[0].id||'';
-    return `<div class="group-header" data-road="${escapedRoad}" onclick="toggleGroup(this)">
-        <span class="group-chevron${isOpen?' open':''}">▶</span>
-        <span class="group-name">${dmId} · ${road}</span>
-        <span class="group-count">${items.length}</span>
-      </div>
-      <div class="group-body${isOpen?'':' collapsed'}" id="${safeId}" style="max-height:${isOpen?bh+80:0}px">${items.some(r=>r.imageID)?'<div class="img-gallery" id="gal_${safeId}"><button class="img-load-btn" onclick="loadGroupImages(&quot;gal_${safeId}&quot;,&quot;${escapedRoad}&quot;,event)">📷 Load '+items.filter(r=>r.imageID).length+' photo(s)</button></div>':''}${rows}</div>`;
+    // Each row has a thumbnail placeholder + coords + stage
+    const rows=items.map(r=>{
+      const col=sc(r.stage),bg=sl(r.stage),gi=records.indexOf(r);
+      const thumbId='th_'+gi;
+      // Show spinner if imageID exists, map icon if not
+      const thumbHtml=r.imageID
+        ? '<div class="li-spin">⏳</div>'
+        : '<div style="font-size:16px;opacity:.4;">📍</div>';
+      return '<div class="list-item" id="li-'+gi+'" onclick="flyToRecord('+gi+')">'
+        +'<div class="li-thumb" id="'+thumbId+'">'+thumbHtml+'</div>'
+        +'<div class="li-text">'
+        +'<div class="li-id">'+r.lat.toFixed(4)+'°S, '+r.lng.toFixed(4)+'°E</div>'
+        +(r.caption?'<div class="li-id" style="color:#9ca3af;font-size:10px;">'+r.caption+'</div>':'')
+        +'</div>'
+        +'<span class="li-stage" style="background:'+bg+';color:'+col+'">'+r.stage+'</span>'
+        +'</div>';
+    }).join('');
+    return '<div class="group-header" data-road="'+escapedRoad+'" data-safe="'+safeId+'" onclick="toggleGroup(this)">'
+      +'<span class="group-chevron'+(isOpen?' open':'')+'">▶</span>'
+      +'<span class="group-name">'+dmId+' · '+road+'</span>'
+      +'<span class="group-count">'+items.length+'</span>'
+      +'</div>'
+      +'<div class="group-body'+(isOpen?'':' collapsed')+'" id="'+safeId+'" style="max-height:'+(isOpen?bh:0)+'px">'+rows+'</div>';
   }).join('');
 }
+
 function toggleGroup(h){
-  const road=h.dataset.road; groupOpen[road]=!groupOpen[road];
+  const road=h.dataset.road;
+  const safeId=h.dataset.safe||('grp_'+road.replace(/[^a-z0-9]/gi,'_'));
+  groupOpen[road]=!groupOpen[road];
   const isOpen=groupOpen[road];
   h.querySelector('.group-chevron').classList.toggle('open',isOpen);
-  const safeId='grp_'+road.replace(/[^a-z0-9]/gi,'_');
   const body=document.getElementById(safeId);
-  if(body){const bh=body.querySelectorAll('.list-item').length*54+10;body.style.maxHeight=isOpen?bh+'px':'0px';body.classList.toggle('collapsed',!isOpen);}
+  if(!body)return;
+  const bh=body.querySelectorAll('.list-item').length*72+8;
+  body.style.maxHeight=isOpen?bh+'px':'0px';
+  body.classList.toggle('collapsed',!isOpen);
+  // Auto-load images when first opened
+  if(isOpen&&!groupImagesLoaded[road]){
+    groupImagesLoaded[road]=true;
+    loadGroupImages(road);
+  }
 }
 function highlightList(r){
   document.querySelectorAll('.list-item').forEach(el=>el.classList.remove('active'));
-  const road=r.road||'Unknown'; groupOpen[road]=true; renderList();
+  const road=r.road||'Unknown';
+  // Open group if not already open
+  if(!groupOpen[road]){
+    groupOpen[road]=true;
+    if(!groupImagesLoaded[road]){
+      groupImagesLoaded[road]=true;
+      renderList();
+      setTimeout(()=>loadGroupImages(road),100);
+    } else { renderList(); }
+  }
   const idx=records.indexOf(r);
   const el=document.getElementById(`li-${idx}`);
   if(el){el.classList.add('active');el.scrollIntoView({behavior:'smooth',block:'nearest'});}
@@ -622,22 +659,6 @@ function togglePane(){
 
 /* ── postMessage → Power Apps ── */
 
-function toggleDebug(){
-  const p=document.getElementById('debugPanel');
-  p.style.display=p.style.display==='none'?'block':'none';
-  if(p.style.display==='block'){
-    const hash=window.location.hash;
-    if(!hash||hash.length<2){p.textContent='No hash data';return;}
-    try{
-      const raw=JSON.parse(decodeURIComponent(hash.substring(1)));
-      const first=raw[0]||{};
-      const keys=Object.keys(first);
-      p.textContent='Total records: '+raw.length+'\n\nFirst record keys:\n'+
-        keys.map(k=>k+': '+JSON.stringify(first[k])).join('\n');
-    }catch(e){p.textContent='Parse error: '+e.message;}
-  }
-}
-
 function postUp(obj){try{window.parent.postMessage(JSON.stringify(obj),'*');}catch(e){}}
 
 /* ── LOAD DATA ── */
@@ -665,7 +686,5 @@ if(window.__atlasReady){initMap();}
 // Fallback poll in case onload already fired before this script ran
 else{const t=setInterval(()=>{if(typeof atlas!=='undefined'){clearInterval(t);initMap();}},50);}
 </script>
-<div id="debugPanel"></div>
-<button id="debugBtn" onclick="toggleDebug()">🔍 Debug</button>
 </body>
 </html>
