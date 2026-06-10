@@ -265,20 +265,32 @@ const DEMO=[
 
 
 /* ── NORMALISE — maps Dataverse column names to internal fields ──
-   Dataverse sends: drfa_RecoverDamageNumber, drfa_SiteName, drfa_Stage,
-                    drfa_ImageLatitude, drfa_ImageLongitude,
-                    drfa_ImageBase64, drfa_Caption
-   Internal map:    r.id, r.road, r.stage, r.lat, r.lng, r.image64, r.caption
+   Power Apps JSON() outputs lowercase field names, so we check both cases.
+   Dataverse columns: drfa_RecoverDamageNumber, drfa_RecoverRoadName,
+                      drfa_Stage, drfa_ImageLatitude, drfa_ImageLongitude,
+                      drfa_ImageBase64, drfa_Caption
 */
 function normalise(raw){
+  // Power Apps JSON() uses lowercase logical names
+  // Try all known variants: original case, lowercase, display name style
+  const f=(...keys)=>{
+    for(const k of keys){
+      const v=raw[k]??raw[k.toLowerCase()]??raw[k.replace(/_/g,'').toLowerCase()];
+      if(v!==undefined&&v!==null)return v;
+    }
+    return null;
+  };
   return {
-    id:       raw.drfa_RecoverDamageNumber || raw.id       || '',
-    road:     raw.drfa_RecoverRoadName      || raw.drfa_SiteName || raw.road || '',
-    stage:    raw.drfa_Stage               || raw.stage    || '',
-    lat:      parseFloat(raw.drfa_ImageLatitude  ?? raw.lat  ?? 0),
-    lng:      parseFloat(raw.drfa_ImageLongitude ?? raw.lng  ?? 0),
-    image64:  raw.drfa_ImageBase64         || raw.image64  || '',
-    caption:  raw.drfa_Caption             || raw.caption  || '',
+    id:      f('drfa_RecoverDamageNumber','drfa_recoverdamagenumber')      ||'',
+    road:    f('drfa_RecoverRoadName','drfa_recoverroadname',
+               'drfa_SiteName','drfa_sitename')                           ||'',
+    stage:   f('drfa_Stage','drfa_stage')                                  ||'',
+    lat:     parseFloat(f('drfa_ImageLatitude','drfa_imagelatitude',
+                          'drfa_RecoverLatitude','drfa_recoverlatitude')??0),
+    lng:     parseFloat(f('drfa_ImageLongitude','drfa_imagelongitude',
+                          'drfa_RecoverLongitude','drfa_recoverlongitude')??0),
+    image64: f('drfa_ImageBase64','drfa_imagebase64')                      ||'',
+    caption: f('drfa_Caption','drfa_caption')                              ||'',
   };
 }
 /* ── STATE ── */
