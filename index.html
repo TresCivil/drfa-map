@@ -169,6 +169,17 @@ body.pane-collapsed #paneToggle .arrow{transform:rotate(180deg)}
 .li-thumb .li-spin{font-size:14px;opacity:.5;animation:spin 1s linear infinite;}
 @keyframes spin{to{transform:rotate(360deg)}}
 
+
+.pop-img-link{
+  display:flex;align-items:center;justify-content:center;gap:6px;
+  width:100%;padding:7px;margin:0 16px 14px;width:calc(100% - 32px);
+  font-size:11px;font-weight:600;font-family:inherit;
+  background:#f0f9ff;border:1.5px solid #bae6fd;border-radius:8px;
+  color:#0284c7;cursor:pointer;text-decoration:none;
+  transition:all .15s;
+}
+.pop-img-link:hover{background:#e0f2fe;border-color:#7dd3fc;}
+.pop-img-link svg{width:14px;height:14px;flex-shrink:0;}
 </style>
 </head>
 <body>
@@ -229,8 +240,8 @@ body.pane-collapsed #paneToggle .arrow{transform:rotate(180deg)}
 
 <script>
 const CIVICA={base:'https://api.civicagov.com',user:'MidCoastRecoverApiUser',pass:'WExAzItAfa2a^IXI',clientKey:'NWJjZDcwNTctMTFiOS00YTRmLWFiODYtZjQyMWRkNzE1NzA10',sessionId:null,userId:null,imgCache:{},pending:{}};
-async function civicaLogin(){if(CIVICA.sessionId)return true;try{const res=await fetch(CIVICA.base+'/api/DataService/Login/json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({UserName:CIVICA.user,Password:CIVICA.pass,ClientKey:CIVICA.clientKey})});const d=await res.json();if(!d.SessionId)return false;CIVICA.sessionId=d.SessionId;CIVICA.userId=d.UserId;return true;}catch(e){return false;}}
-async function civicaGetImage(imageID){if(!imageID)return null;if(CIVICA.imgCache[imageID])return CIVICA.imgCache[imageID];if(CIVICA.pending[imageID])return new Promise(r=>CIVICA.pending[imageID].push(r));CIVICA.pending[imageID]=[];try{const ok=await civicaLogin();if(!ok)return null;const res=await fetch(CIVICA.base+'/api/DataService/GetRecord/json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({UserId:CIVICA.userId,SessionId:CIVICA.sessionId,ModuleName:'Images',RecordId:imageID})});const d=await res.json();if(!d.Success||!d.Data)return null;const img=d.Data.Image||null;if(img)CIVICA.imgCache[imageID]=img;(CIVICA.pending[imageID]||[]).forEach(cb=>cb(img));delete CIVICA.pending[imageID];return img;}catch(e){(CIVICA.pending[imageID]||[]).forEach(cb=>cb(null));delete CIVICA.pending[imageID];return null;}}
+async function civicaLogin(){console.log('[Civica] login called, existing session:',!!CIVICA.sessionId);if(CIVICA.sessionId)return true;try{const res=await fetch(CIVICA.base+'/api/DataService/Login/json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({UserName:CIVICA.user,Password:CIVICA.pass,ClientKey:CIVICA.clientKey})});const d=await res.json();if(!d.SessionId)return false;CIVICA.sessionId=d.SessionId;CIVICA.userId=d.UserId;return true;}catch(e){return false;}}
+async function civicaGetImage(imageID){console.log('[Civica] getImage called with:',imageID);if(!imageID)return null;if(CIVICA.imgCache[imageID])return CIVICA.imgCache[imageID];if(CIVICA.pending[imageID])return new Promise(r=>CIVICA.pending[imageID].push(r));CIVICA.pending[imageID]=[];try{const ok=await civicaLogin();if(!ok)return null;const res=await fetch(CIVICA.base+'/api/DataService/GetRecord/json',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({UserId:CIVICA.userId,SessionId:CIVICA.sessionId,ModuleName:'Images',RecordId:imageID})});const d=await res.json();if(!d.Success||!d.Data)return null;const img=d.Data.Image||null;if(img)CIVICA.imgCache[imageID]=img;(CIVICA.pending[imageID]||[]).forEach(cb=>cb(img));delete CIVICA.pending[imageID];return img;}catch(e){(CIVICA.pending[imageID]||[]).forEach(cb=>cb(null));delete CIVICA.pending[imageID];return null;}}
 const groupImagesLoaded={};
 async function loadGroupImages(road){
   // Find all records in this group that have an imageID
@@ -324,6 +335,7 @@ function normalise(raw){
     image64:  g('drfa_ImageBase64')         || g('image64') || '',
     caption:  g('drfa_Caption')             || g('caption') || '',
     createdby:g('drfa_CreatedByFromRecover')|| g('createdby') || '',
+    parentID: g('drfa_ParentID')             || g('parentID')  || '',
   };
 }
 /* ── STATE ── */
@@ -369,6 +381,9 @@ function clearFilters(){
   activeStage=null;filterRecover='';filterRoad='';
   document.getElementById('filterRecover').value='';
   document.getElementById('filterRoad').value='';
+  // Collapse all groups and reset image loaded state
+  Object.keys(groupOpen).forEach(k=>{groupOpen[k]=false;});
+  Object.keys(groupImagesLoaded).forEach(k=>{delete groupImagesLoaded[k];});
   buildChips();if(popup)popup.close();renderList();updatePins();setTimeout(fitAll,100);
 }
 
@@ -393,7 +408,7 @@ function buildChips(){
       <span class="dot" style="background:${col}"></span>${s}</button>`;
   }).join('');
 }
-function setStage(s){activeStage=activeStage===s?null:s;buildChips();if(popup)popup.close();renderList();updatePins();setTimeout(fitAll,100);}
+function setStage(s){activeStage=activeStage===s?null:s;Object.keys(groupOpen).forEach(k=>{groupOpen[k]=false;});Object.keys(groupImagesLoaded).forEach(k=>{delete groupImagesLoaded[k];});buildChips();if(popup)popup.close();renderList();updatePins();setTimeout(fitAll,100);}
 
 /* ── SIDE LIST ── */
 function renderList(){
@@ -496,7 +511,12 @@ function popupHtml(r){
       <div class="pop-field"><div class="pop-fkey">Stage</div><div class="pop-fval" style="color:${col}">${r.stage}</div></div>
       <div class="pop-field full"><div class="pop-fkey">Road / Asset</div><div class="pop-fval">${r.road||'—'}</div></div>
       ${r.caption?`<div class="pop-field full"><div class="pop-fkey">Caption</div><div class="pop-fval">${r.caption}</div></div>`:''}
+      ${r.createdby?`<div class="pop-field full"><div class="pop-fkey">Created By</div><div class="pop-fval">${r.createdby}</div></div>`:''}
     </div>
+    ${r.parentID?`<a class="pop-img-link" href="https://recover-nsw.civicagov.com/Images/PrintPreviewListByParentId?parentId=${r.parentID}" target="_blank" rel="noopener">
+      <svg viewBox="0 0 14 14" fill="none"><path d="M1 1h12v10H1zM4 11v2M10 11v2M4 13h6" stroke="currentColor" stroke-width="1.2" stroke-linecap="round"/><path d="M3 4h3v3H3zM8 4h3v3H8z" fill="currentColor" opacity=".5"/></svg>
+      View Site Photos
+    </a>`:''}
     <div class="pop-map-links">
       <a class="pop-map-btn apple" href="${appleUrl}" target="_blank" rel="noopener">
         <svg viewBox="0 0 14 14" fill="none"><path d="M7 1C3.69 1 1 3.69 1 7s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 1.5A4.5 4.5 0 1 1 7 11.5 4.5 4.5 0 0 1 7 2.5zm0 1a3.5 3.5 0 1 0 0 7 3.5 3.5 0 0 0 0-7zm.5 1.5v2.29l1.35 1.36-.7.7L6.5 7.71V5h1z" fill="currentColor"/></svg>
