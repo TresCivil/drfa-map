@@ -154,6 +154,18 @@ body.pane-collapsed #paneToggle .arrow{transform:rotate(180deg)}
   background:#e8f0fe;border-color:#c5d5f8;color:#1a56db;
 }
 .pop-map-btn svg{width:14px;height:14px;flex-shrink:0;}
+
+/* ── CLUSTER BUBBLES ── */
+.cluster-bubble{
+  display:flex;align-items:center;justify-content:center;
+  border-radius:50%;cursor:pointer;
+  font-family:'DM Sans',sans-serif;font-weight:700;
+  border:3px solid #fff;
+  box-shadow:0 2px 8px rgba(0,0,0,0.25);
+  transition:transform .15s;
+  color:#fff;
+}
+.cluster-bubble:hover{transform:scale(1.1);}
 </style>
 </head>
 <body>
@@ -229,17 +241,17 @@ const sl=s=>(STAGE_CFG[s]||{l:'rgba(0,0,0,.05)'}).l;
 
 /* ── DEMO DATA — uses Dataverse column names (drfa_*) ── */
 const DEMO=[
-  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7841,drfa_ImageLongitude:152.4023,drfa_ImageBase64:"",drfa_Caption:"Road surface damage near creek crossing"},
-  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7840,drfa_ImageLongitude:152.4016,drfa_ImageBase64:"",drfa_Caption:"Shoulder erosion on bend"},
-  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7838,drfa_ImageLongitude:152.4008,drfa_ImageBase64:"",drfa_Caption:"Culvert outlet scour"},
-  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7836,drfa_ImageLongitude:152.4001,drfa_ImageBase64:"",drfa_Caption:"Pavement deformation — section 4"},
+  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7841,drfa_ImageLongitude:152.4023,drfa_ImageBase64:"",drfa_Caption:"Road surface damage near creek crossing",drfa_CreatedByFromRecover:"J. Smith"},
+  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7840,drfa_ImageLongitude:152.4016,drfa_ImageBase64:"",drfa_Caption:"Shoulder erosion on bend",drfa_CreatedByFromRecover:"J. Smith"},
+  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7838,drfa_ImageLongitude:152.4008,drfa_ImageBase64:"",drfa_Caption:"Culvert outlet scour",drfa_CreatedByFromRecover:"R. Chen"},
+  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7836,drfa_ImageLongitude:152.4001,drfa_ImageBase64:"",drfa_Caption:"Pavement deformation — section 4",drfa_CreatedByFromRecover:"R. Chen"},
   {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7835,drfa_ImageLongitude:152.3993,drfa_ImageBase64:"",drfa_Caption:""},
   {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7833,drfa_ImageLongitude:152.3988,drfa_ImageBase64:"",drfa_Caption:""},
   {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7831,drfa_ImageLongitude:152.3984,drfa_ImageBase64:"",drfa_Caption:""},
-  {drfa_RecoverDamageNumber:"DM00108",drfa_SiteName:"Black Mountain Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.9261,drfa_ImageLongitude:152.1234,drfa_ImageBase64:"",drfa_Caption:"Flood scour on downstream face"},
-  {drfa_RecoverDamageNumber:"DM00108",drfa_SiteName:"Black Mountain Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.9255,drfa_ImageLongitude:152.1228,drfa_ImageBase64:"",drfa_Caption:"Debris blockage at culvert"},
+  {drfa_RecoverDamageNumber:"DM00108",drfa_SiteName:"Black Mountain Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.9261,drfa_ImageLongitude:152.1234,drfa_ImageBase64:"",drfa_Caption:"Flood scour on downstream face",drfa_CreatedByFromRecover:"M. Torres"},
+  {drfa_RecoverDamageNumber:"DM00108",drfa_SiteName:"Black Mountain Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.9255,drfa_ImageLongitude:152.1228,drfa_ImageBase64:"",drfa_Caption:"Debris blockage at culvert",drfa_CreatedByFromRecover:"M. Torres"},
   {drfa_RecoverDamageNumber:"DM00108",drfa_SiteName:"Black Mountain Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.9270,drfa_ImageLongitude:152.1240,drfa_ImageBase64:"",drfa_Caption:""},
-  {drfa_RecoverDamageNumber:"DM00115",drfa_SiteName:"Comboyne Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.6020,drfa_ImageLongitude:152.4610,drfa_ImageBase64:"",drfa_Caption:"Landslip blocking carriageway"},
+  {drfa_RecoverDamageNumber:"DM00115",drfa_SiteName:"Comboyne Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.6020,drfa_ImageLongitude:152.4610,drfa_ImageBase64:"",drfa_Caption:"Landslip blocking carriageway",drfa_CreatedByFromRecover:"A. Nguyen"},
   {drfa_RecoverDamageNumber:"DM00115",drfa_SiteName:"Comboyne Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.6035,drfa_ImageLongitude:152.4598,drfa_ImageBase64:"",drfa_Caption:""},
   {drfa_RecoverDamageNumber:"DM00115",drfa_SiteName:"Comboyne Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.6010,drfa_ImageLongitude:152.4622,drfa_ImageBase64:"",drfa_Caption:""},
   {drfa_RecoverDamageNumber:"DM00121",drfa_SiteName:"Byabarra Rd",drfa_Stage:"Post-Event",drfa_ImageLatitude:-31.5540,drfa_ImageLongitude:152.5120,drfa_ImageBase64:"",drfa_Caption:""},
@@ -435,6 +447,7 @@ function popupHtml(r){
       <div class="pop-field"><div class="pop-fkey">Stage</div><div class="pop-fval" style="color:${col}">${r.stage}</div></div>
       <div class="pop-field full"><div class="pop-fkey">Road / Asset</div><div class="pop-fval">${r.road||'—'}</div></div>
       ${r.caption?`<div class="pop-field full"><div class="pop-fkey">Caption</div><div class="pop-fval">${r.caption}</div></div>`:''}
+      ${r.createdby?`<div class="pop-field full"><div class="pop-fkey">Created By</div><div class="pop-fval">${r.createdby}</div></div>`:''}
     </div>
     <div class="pop-map-links">
       <a class="pop-map-btn apple" href="${appleUrl}" target="_blank" rel="noopener">
@@ -461,7 +474,7 @@ function pinSvg(col){
 }
 
 /* ── AZURE MAP INIT ── */
-let markers=[];
+let datasource=null, markers=[];
 
 function initMap(){
   azMap = new atlas.Map('azureMap',{
@@ -474,54 +487,133 @@ function initMap(){
 
   azMap.events.add('ready',()=>{
     popup = new atlas.Popup({
-      pixelOffset:[0,-38],
+      pixelOffset:[0,-42],
       closeButton:true,
       fillColor:'transparent',
       strokeColor:'transparent',
     });
-    updatePins(); // map already centred on NSW via initial center/zoom
+
+    // DataSource with clustering enabled
+    datasource = new atlas.source.DataSource(null,{
+      cluster:true,
+      clusterRadius:50,       // px radius to merge pins
+      clusterMaxZoom:14,      // above zoom 14 = individual pins
+    });
+    azMap.sources.add(datasource);
+
+    // ── Cluster bubble layer ──
+    const clusterLayer = new atlas.layer.BubbleLayer(datasource,'clusters',{
+      filter:['has','point_count'],
+      radius:['step',['get','point_count'],18,10,24,50,30,100,36],
+      color:['step',['get','point_count'],
+        '#6366f1',10,'#3b82f6',50,'#f59e0b',100,'#f97316'
+      ],
+      strokeColor:'#fff',
+      strokeWidth:2.5,
+    });
+    azMap.layers.add(clusterLayer);
+
+    // ── Cluster count labels ──
+    const clusterLabelLayer = new atlas.layer.SymbolLayer(datasource,'clusterLabels',{
+      filter:['has','point_count'],
+      textOptions:{
+        textField:['get','point_count_abbreviated'],
+        color:'#fff',
+        font:['DIN Offc Pro Medium','Arial Unicode MS Bold'],
+        size:13,
+        offset:[0,0.4],
+      },
+      iconOptions:{image:'none'},
+    });
+    azMap.layers.add(clusterLabelLayer);
+
+    // ── Individual pin layer (symbol) ──
+    // Add stage-coloured pin images to sprite
+    addPinImages(()=>{
+      const pinLayer = new atlas.layer.SymbolLayer(datasource,'pins',{
+        filter:['!',['has','point_count']],
+        iconOptions:{
+          image:['get','pinImg'],
+          anchor:'bottom',
+          allowOverlap:true,
+          size:1,
+        },
+      });
+      azMap.layers.add(pinLayer);
+
+      // Click individual pin
+      azMap.events.add('click',pinLayer,e=>{
+        if(!e.shapes||!e.shapes.length)return;
+        const props=e.shapes[0].getProperties();
+        const r=records[props.idx];
+        if(!r)return;
+        popup.setOptions({
+          content:`<div class="azure-popup">${popupHtml(r)}</div>`,
+          position:e.shapes[0].getCoordinates(),
+        });
+        popup.open(azMap);
+        highlightList(r);
+        postUp({type:'PIN_CLICK',id:r.id,stage:r.stage,lat:r.lat,lng:r.lng});
+      });
+
+      // Click cluster → zoom in
+      azMap.events.add('click',clusterLayer,e=>{
+        if(!e.shapes||!e.shapes.length)return;
+        const cluster=e.shapes[0];
+        datasource.getClusterExpansionZoom(cluster.getProperties().cluster_id).then(z=>{
+          azMap.setCamera({center:cluster.getCoordinates(),zoom:z+1,type:'fly',duration:500});
+        });
+      });
+
+      // Cursor changes
+      azMap.events.add('mousemove',pinLayer,()=>{azMap.getCanvasContainer().style.cursor='pointer';});
+      azMap.events.add('mouseleave',pinLayer,()=>{azMap.getCanvasContainer().style.cursor='';});
+      azMap.events.add('mousemove',clusterLayer,()=>{azMap.getCanvasContainer().style.cursor='pointer';});
+      azMap.events.add('mouseleave',clusterLayer,()=>{azMap.getCanvasContainer().style.cursor='';});
+
+      updatePins();
+    });
   });
 }
 
-/* ── UPDATE PINS — instant HtmlMarkers ── */
-function updatePins(){
-  if(!azMap)return;
-  markers.forEach(m=>azMap.markers.remove(m.marker||m));
-  markers=[];
-  const vis=getFiltered();
-  vis.forEach((r,i)=>{
-    const col=sc(r.stage);
-    const markerId='pin-'+i;
-    // Pass HTML string (not DOM element) — required by Azure Maps HtmlMarker
-    const htmlStr=`<div id="${markerId}" style="cursor:pointer;display:block;">
-      <div class="pin-inner" style="display:block;transition:filter .15s;">${pinSvg(col)}</div>
-    </div>`;
-    const marker=new atlas.HtmlMarker({
-      htmlContent:htmlStr,
-      position:[r.lng,r.lat],
-      anchor:'bottom',
-    });
-    azMap.markers.add(marker);
-    markers.push({marker,record:r});
-    // Attach events after marker is in DOM
-    azMap.events.add('click',marker,()=>{
-      popup.setOptions({
-        content:`<div class="azure-popup">${popupHtml(r)}</div>`,
-        position:[r.lng,r.lat],
-      });
-      popup.open(azMap);
-      highlightList(r);
-      postUp({type:'PIN_CLICK',id:r.id,stage:r.stage,lat:r.lat,lng:r.lng});
-    });
-    azMap.events.add('mouseenter',marker,()=>{
-      const el=marker.getElement();
-      if(el){const inner=el.querySelector('.pin-inner');if(inner)inner.style.filter='brightness(1.2)';}
-    });
-    azMap.events.add('mouseleave',marker,()=>{
-      const el=marker.getElement();
-      if(el){const inner=el.querySelector('.pin-inner');if(inner)inner.style.filter='';}
-    });
+/* ── ADD PIN IMAGES TO MAP SPRITE ── */
+function addPinImages(done){
+  const stages=Object.keys(STAGE_CFG);
+  let loaded=0;
+  stages.forEach(s=>{
+    const col=STAGE_CFG[s].c;
+    const id='pin_'+s.replace(/[\s-]/g,'_');
+    const sz=32,h=42;
+    const cv=document.createElement('canvas');cv.width=sz;cv.height=h;
+    const ctx=cv.getContext('2d');
+    ctx.translate(sz/2,h-2);
+    ctx.shadowColor=STAGE_CFG[s].glow;ctx.shadowBlur=6;ctx.shadowOffsetY=2;
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.bezierCurveTo(-10,-8,-14,-22,-14,-26);
+    ctx.arc(0,-26,14,Math.PI,0);
+    ctx.bezierCurveTo(14,-22,10,-8,0,0);
+    ctx.fillStyle=col;ctx.fill();
+    ctx.shadowBlur=0;ctx.shadowOffsetY=0;
+    ctx.beginPath();ctx.arc(0,-26,6,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,255,255,0.92)';ctx.fill();
+    azMap.imageSprite.add(id,cv).then(()=>{loaded++;if(loaded===stages.length)done();});
   });
+}
+
+/* ── UPDATE PINS via DataSource (fast — no DOM markers) ── */
+function updatePins(){
+  if(!datasource)return;
+  datasource.clear();
+  const vis=getFiltered();
+  const features=vis.map((r,idx)=>{
+    const imgId='pin_'+r.stage.replace(/[\s-]/g,'_');
+    return new atlas.data.Feature(
+      new atlas.data.Point([r.lng,r.lat]),
+      {idx,id:r.id,stage:r.stage,road:r.road,pinImg:imgId}
+    );
+  });
+  datasource.add(features);
 }
 
 /* ── FIT ALL ── */
@@ -546,7 +638,7 @@ function fitAll(){
 /* ── FLY TO RECORD ── */
 function flyToRecord(idx){
   const r=records[idx]; if(!r||!azMap)return;
-  azMap.setCamera({center:[r.lng,r.lat],zoom:14,duration:800,type:'fly'});
+  azMap.setCamera({center:[r.lng,r.lat],zoom:15,duration:800,type:'fly'});
   setTimeout(()=>{
     popup.setOptions({content:`<div class="azure-popup">${popupHtml(r)}</div>`,position:[r.lng,r.lat]});
     popup.open(azMap);
