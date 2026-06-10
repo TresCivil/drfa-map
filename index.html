@@ -605,7 +605,11 @@ function loadFromHash(){
     const h=window.location.hash; if(!h||h.length<2)return false;
     const p=JSON.parse(decodeURIComponent(h.substring(1)));
     if(!Array.isArray(p)||!p.length)return false;
-    records=p.map(normalise); document.getElementById('connLabel').textContent='Dataverse ('+records.length+' records)'; return true;
+    const all=p.map(normalise);
+    records=all.filter(r=>r.lat!==0&&r.lng!==0&&!isNaN(r.lat)&&!isNaN(r.lng));
+    const skipped=all.length-records.length;
+    document.getElementById('connLabel').textContent='Dataverse ('+records.length+' records'+(skipped?' · '+skipped+' no GPS':'') +')';
+    return true;
   }catch(e){return false;}
 }
 
@@ -615,7 +619,11 @@ document.getElementById('filterRoad').addEventListener('change',function(){filte
 window.addEventListener('hashchange',()=>{if(loadFromHash()){populateDropdowns();renderStats();renderList();updatePins();fitAll();}});
 
 /* ── BOOT ── */
-if(!loadFromHash()){records=DEMO.map(normalise);document.getElementById('connLabel').textContent='Demo · '+records.length+' records';}
+if(!loadFromHash()){
+    const all=DEMO.map(normalise);
+    records=all.filter(r=>r.lat!==0&&r.lng!==0&&!isNaN(r.lat)&&!isNaN(r.lng));
+    document.getElementById('connLabel').textContent='Demo · '+records.length+' records';
+  }
 populateDropdowns();renderStats();buildChips();renderList();
 postUp({type:'READY'});
 // Wait for Atlas SDK to load before initialising map
