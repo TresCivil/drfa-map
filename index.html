@@ -164,6 +164,12 @@ body.pane-collapsed #paneToggle .arrow{transform:rotate(180deg)}
 .img-thumb .img-spin{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);font-size:18px;opacity:.4}
 .img-load-btn{width:100%;margin-top:6px;padding:5px;font-size:11px;font-family:inherit;font-weight:600;border:1.5px solid rgba(0,0,0,0.12);border-radius:6px;background:#fff;color:#6b7280;cursor:pointer}
 .img-load-btn:disabled{opacity:.5;cursor:default}
+
+#debugPanel{position:fixed;top:10px;right:10px;z-index:9999;background:#1a1a2e;color:#10B981;
+  font-family:monospace;font-size:11px;padding:10px;border-radius:6px;max-width:400px;
+  max-height:300px;overflow-y:auto;display:none;white-space:pre-wrap;word-break:break-all;}
+#debugBtn{position:fixed;bottom:50px;right:10px;z-index:9999;padding:4px 8px;font-size:11px;
+  background:#1a1a2e;color:#10B981;border:1px solid #10B981;border-radius:4px;cursor:pointer;}
 </style>
 </head>
 <body>
@@ -295,16 +301,20 @@ const DEMO=[
    Internal map:    r.id, r.road, r.stage, r.lat, r.lng, r.image64, r.caption
 */
 function normalise(raw){
+  // Power Apps JSON() outputs lowercase logical names
+  // e.g. drfa_ImageLatitude -> drfa_imagelatitude
+  // We check both mixed-case and lowercase for every field
+  function g(a){return raw[a]!==undefined&&raw[a]!==null?raw[a]:raw[a.toLowerCase()];}
   return {
-    id:       raw.drfa_RecoverDamageNumber || raw.id       || '',
-    road:     raw.drfa_RecoverRoadName      || raw.drfa_SiteName || raw.road || '',
-    stage:    raw.drfa_Stage               || raw.stage    || '',
-    lat:      parseFloat(raw.drfa_ImageLatitude  ?? raw.lat  ?? 0),
-    lng:      parseFloat(raw.drfa_ImageLongitude ?? raw.lng  ?? 0),
-    imageID:  raw.drfa_ImageID             || raw.drfa_imageid || raw.imageID || '',
-    image64:  raw.drfa_ImageBase64         || raw.image64  || '',
-    caption:  raw.drfa_Caption             || raw.caption  || '',
-    createdby:raw.drfa_CreatedByFromRecover || raw.drfa_createdbyfromrecover || raw.createdby || '',
+    id:       g('drfa_RecoverDamageNumber') || g('id')      || '',
+    road:     g('drfa_RecoverRoadName')     || g('drfa_SiteName') || g('road') || '',
+    stage:    g('drfa_Stage')               || g('stage')   || '',
+    lat:      parseFloat(g('drfa_ImageLatitude')  ||g('drfa_RecoverLatitude')  ||g('lat')  ||0),
+    lng:      parseFloat(g('drfa_ImageLongitude') ||g('drfa_RecoverLongitude') ||g('lng')  ||0),
+    imageID:  g('drfa_ImageID')             || g('imageID') || '',
+    image64:  g('drfa_ImageBase64')         || g('image64') || '',
+    caption:  g('drfa_Caption')             || g('caption') || '',
+    createdby:g('drfa_CreatedByFromRecover')|| g('createdby') || '',
   };
 }
 /* ── STATE ── */
@@ -611,6 +621,23 @@ function togglePane(){
 })();
 
 /* ── postMessage → Power Apps ── */
+
+function toggleDebug(){
+  const p=document.getElementById('debugPanel');
+  p.style.display=p.style.display==='none'?'block':'none';
+  if(p.style.display==='block'){
+    const hash=window.location.hash;
+    if(!hash||hash.length<2){p.textContent='No hash data';return;}
+    try{
+      const raw=JSON.parse(decodeURIComponent(hash.substring(1)));
+      const first=raw[0]||{};
+      const keys=Object.keys(first);
+      p.textContent='Total records: '+raw.length+'\n\nFirst record keys:\n'+
+        keys.map(k=>k+': '+JSON.stringify(first[k])).join('\n');
+    }catch(e){p.textContent='Parse error: '+e.message;}
+  }
+}
+
 function postUp(obj){try{window.parent.postMessage(JSON.stringify(obj),'*');}catch(e){}}
 
 /* ── LOAD DATA ── */
@@ -638,5 +665,7 @@ if(window.__atlasReady){initMap();}
 // Fallback poll in case onload already fired before this script ran
 else{const t=setInterval(()=>{if(typeof atlas!=='undefined'){clearInterval(t);initMap();}},50);}
 </script>
+<div id="debugPanel"></div>
+<button id="debugBtn" onclick="toggleDebug()">🔍 Debug</button>
 </body>
 </html>
