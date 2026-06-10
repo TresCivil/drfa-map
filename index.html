@@ -241,7 +241,7 @@ const sl=s=>(STAGE_CFG[s]||{l:'rgba(0,0,0,.05)'}).l;
 
 /* ── DEMO DATA — uses Dataverse column names (drfa_*) ── */
 const DEMO=[
-  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7841,drfa_ImageLongitude:152.4023,drfa_ImageBase64:"",drfa_Caption:"Road surface damage near creek crossing",drfa_CreatedByFromRecover:"J. Smith"},
+  {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7841,drfa_ImageLongitude:152.4023,drfa_ImageBase64:"",drfa_ImageID:"IMG-001",drfa_Caption:"Road surface damage near creek crossing",drfa_CreatedByFromRecover:"J. Smith"},
   {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7840,drfa_ImageLongitude:152.4016,drfa_ImageBase64:"",drfa_Caption:"Shoulder erosion on bend",drfa_CreatedByFromRecover:"J. Smith"},
   {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7838,drfa_ImageLongitude:152.4008,drfa_ImageBase64:"",drfa_Caption:"Culvert outlet scour",drfa_CreatedByFromRecover:"R. Chen"},
   {drfa_RecoverDamageNumber:"DM00092",drfa_SiteName:"Yarratt Rd",drfa_Stage:"Completion",drfa_ImageLatitude:-31.7836,drfa_ImageLongitude:152.4001,drfa_ImageBase64:"",drfa_Caption:"Pavement deformation — section 4",drfa_CreatedByFromRecover:"R. Chen"},
@@ -301,9 +301,104 @@ function normalise(raw){
                           'drfa_RecoverLatitude','drfa_recoverlatitude')??0),
     lng:     parseFloat(f('drfa_ImageLongitude','drfa_imagelongitude',
                           'drfa_RecoverLongitude','drfa_recoverlongitude')??0),
+    imageID: f('drfa_ImageID','drfa_imageid','drfa_ImageId')               ||'',
     image64: f('drfa_ImageBase64','drfa_imagebase64')                      ||'',
     caption: f('drfa_Caption','drfa_caption')                              ||'',
   };
+}
+
+/* ── CIVICA API — lazy image loader ──
+   Login once, cache SessionId, fetch image on pin click.
+   Credentials are read-only API user for image retrieval only.
+*/
+const CIVICA = {
+  base:      'https://api.civicagov.com',
+  user:      'MidCoastRecoverApiUser',
+  pass:      'WExAzItAfa2a^IXI',
+  clientKey: 'NWJjZDcwNTctMTFiOS00YTRmLWFiODYtZjQyMWRkNzE1NzA10',
+  sessionId: null,
+  userId:    null,
+  imgCache:  {},   // imageID → base64
+  pending:   {},   // imageID → [callbacks]
+};
+
+async function civicaLogin(){
+  if(CIVICA.sessionId)return true;
+  try{
+    const res=await fetch(CIVICA.base+'/api/DataService/Login/json',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({UserName:CIVICA.user,Password:CIVICA.pass,ClientKey:CIVICA.clientKey})
+    });
+    const data=await res.json();
+    if(!data.SessionId)return false;
+    CIVICA.sessionId=data.SessionId;
+    CIVICA.userId=data.UserId;
+    return true;
+  }catch(e){console.warn('Civica login failed:',e);return false;}
+}
+
+async function civicaGetImage(imageID){
+  if(!imageID)return null;
+  // Return from cache
+  if(CIVICA.imgCache[imageID])return CIVICA.imgCache[imageID];
+  // Deduplicate in-flight requests for same imageID
+  if(CIVICA.pending[imageID]){
+    return new Promise(res=>CIVICA.pending[imageID].push(res));
+  }
+  CIVICA.pending[imageID]=[];
+  try{
+    const ok=await civicaLogin();
+    if(!ok)return null;
+    // Use GetRecord — single call by RecordId (ImageID is the GUID record key)
+    const res=await fetch(CIVICA.base+'/api/DataService/GetRecord/json',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        UserId:CIVICA.userId,
+        SessionId:CIVICA.sessionId,
+        ModuleName:'Images',
+        RecordId:imageID
+      })
+    });
+    const data=await res.json();
+    if(!data.Success||!data.Data)return null;
+    const img=data.Data.Image||null;
+    if(img)CIVICA.imgCache[imageID]=img;
+    // Resolve any pending callbacks
+    (CIVICA.pending[imageID]||[]).forEach(cb=>cb(img));
+    delete CIVICA.pending[imageID];
+    return img;
+  }catch(e){
+    console.warn('Civica GetRecord failed:',e);
+    (CIVICA.pending[imageID]||[]).forEach(cb=>cb(null));
+    delete CIVICA.pending[imageID];
+    return null;
+  }
+}
+
+// Open popup with static map preview, then swap in real photo when loaded
+async function openPopupWithImage(r, position){
+  // Show popup immediately with static map
+  popup.setOptions({
+    content:`<div class="azure-popup">${popupHtml(r)}</div>`,
+    position,
+  });
+  popup.open(azMap);
+  // If imageID exists, fetch real photo and swap in
+  if(r.imageID){
+    const b64=await civicaGetImage(r.imageID);
+    if(b64){
+      // Update image in already-open popup
+      const container=document.querySelector('.azure-popup .pop-img, .azure-popup .pop-img-ph');
+      if(container){
+        const src=b64.startsWith('data:')?b64:'data:image/jpeg;base64,'+b64;
+        container.outerHTML=`<img class="pop-img" src="${src}" alt="site photo">`;
+      }
+      // Also cache on the record for next time
+      r.image64=b64;
+    }
+  }
 }
 /* ── STATE ── */
 let records=[], activeStage=null, filterRecover='', filterRoad='';
@@ -547,11 +642,7 @@ function initMap(){
         const props=e.shapes[0].getProperties();
         const r=records[props.idx];
         if(!r)return;
-        popup.setOptions({
-          content:`<div class="azure-popup">${popupHtml(r)}</div>`,
-          position:e.shapes[0].getCoordinates(),
-        });
-        popup.open(azMap);
+        openPopupWithImage(r, e.shapes[0].getCoordinates());
         highlightList(r);
         postUp({type:'PIN_CLICK',id:r.id,stage:r.stage,lat:r.lat,lng:r.lng});
       });
@@ -640,8 +731,7 @@ function flyToRecord(idx){
   const r=records[idx]; if(!r||!azMap)return;
   azMap.setCamera({center:[r.lng,r.lat],zoom:15,duration:800,type:'fly'});
   setTimeout(()=>{
-    popup.setOptions({content:`<div class="azure-popup">${popupHtml(r)}</div>`,position:[r.lng,r.lat]});
-    popup.open(azMap);
+    openPopupWithImage(r,[r.lng,r.lat]);
     highlightList(r);
   },900);
 }
